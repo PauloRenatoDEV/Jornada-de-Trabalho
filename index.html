@@ -184,7 +184,7 @@
 
       for (const r of registros) {
         const [dia, mesR, anoR] = r.data.split('/').map(Number);
-        const dataRegistro = new Date(2000 + anoR, mesR - 1, dia);
+        const dataRegistro = new Date(2000 + anoR, mesR, dia);
 
         if (dataRegistro >= dataInicio && dataRegistro <= dataFim) {
           const jornadaMin = calcularDuracao(r.inicioJornada, r.fimJornada);
