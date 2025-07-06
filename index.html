@@ -199,13 +199,13 @@ async function exportarParaPDF() {
   const mesConsulta = document.getElementById('mesConsulta').value;
   if (!mesConsulta) return alert("Selecione um mês para exportar.");
   const [ano, mes] = mesConsulta.split('-').map(Number);
-  const dataInicio = new Date(ano, mes - 1, 16);
+  const dataInicio = new Date(ano, mes -1, 16);
   const dataFim = new Date(ano, mes, 15);
   const registros = JSON.parse(localStorage.getItem('registros')) || [];
   const dadosTabela = [];
   for (const r of registros) {
     const [dia, mesR, anoR] = r.data.split('/').map(Number);
-    const dataRegistro = new Date(2000 + anoR, mesR - 1, dia);
+    const dataRegistro = new Date(2000 + anoR, mesR, dia);
     if (dataRegistro >= dataInicio && dataRegistro <= dataFim) {
       const jornadaMin = calcularDuracao(r.inicioJornada, r.fimJornada);
       let pausaMin = 0;
