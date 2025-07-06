@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>Calculadora de Jornada</title>
+  <link rel="icon" type="png" href="jtfav.png">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+  <style>
+    * { margin:0; padding:0; }
+    footer {
+      font-size: 190%;
+      text-align: center;
+      margin-top: 5px;
+      padding: 1%;
+      margin-bottom: 0px;
+      color: red;
+      background: black;
+    }
+    .pix{
+      background: green;
+      margin: auto;
+      font-size: 80%;
+      color: white;
+      display: flex;
+      width: 20%;
+      height: 5%;
+      margin-top: 1px;
+      border-radius: 20px
+    }
+  .apoio{
+    color: white;
+    font-size: 80%;
+  }
+    header { background:black; color:white; display:flex; align-items:center; justify-content:center; padding:50px 0; }
+    h1 { font-size:70px; }
+    h2 { display:flex; align-items:center; justify-content:center; margin-top:20px; font-size:60px; }
+    body { background:floralwhite; font-family:sans-serif; }
+    label { font-size:40px; display:block; margin:10px; height:auto; }
+    input, select, button { margin-top:5px; padding:5px; width:98%; height:100px; font-size:35px; }
+    .registro { font-size:45px; background:white; text-align:center; border-bottom:1px solid #ccc; margin-top:10px; padding-bottom:10px; }
+    .resultado { font-size:70px; margin-left:40px; margin-top:20px; font-weight:bold; }
+    .pausa { margin-top:10px; display:flex; align-items:center; gap:10px; }
+    .pausa input { width:45%; height:80px; }
+    .pausa button { height:80px; font-size:30px; }
+  </style>
+</head>
+<body>
+<header><h1>Calculadora de horas extras</h1></header>
+<h2>Registrar Jornada</h2>
+<div class="mural">
+<label>Data:<input type="date" id="data"></label>
+<label>Início da jornada:<input type="time" id="inicioJornada"></label>
+<label>Fim da jornada:<input type="time" id="fimJornada"></label>
+<label>Pausas:
+<div id="pausasContainer">
+<div class="pausa">
+<input type="time" class="inicioPausa"> às <input type="time" class="fimPausa">
+</div>
+</div>
+<button type="button" onclick="adicionarPausa()">➕ Nova Pausa</button>
+</label>
+</div>
+<button onclick="salvarRegistro()">Salvar</button>
+<label>Valor da hora extra (R$):<input type="number" step="0.01" id="valorHoraExtra" value="19,60"></label>
+<h2>Consultar Registros</h2>
+<label>Escolha o mês:<input type="month" id="mesConsulta"></label>
+<button onclick="mostrarRegistros()">Consultar</button>
+<button onclick="apagarTodosRegistros()">Apagar Todos</button>
+<button onclick="exportarParaPDF()">Exportar para PDF</button>
+<div id="registros"></div>
+<div class="resultado" id="resumo"></div>
+<footer>Sistema criado por Paulo Renato
+<h4 class="apoio">ajude a aprimorar e desenvolver mais app como este, qualquer valor será muito bem vindo!</h4>
+<button class="pix" onclick="copiarChavePix()">Copiar chave PIX</button>
+</footer>
+
+<script>
+document.getElementById('data').addEventListener('change', () => {
+  const agora = new Date();
+  const hora = agora.toTimeString().slice(0, 5);
+  document.getElementById('inicioJornada').value = hora;
+  document.getElementById('fimJornada').value = hora;
+  document.querySelectorAll('.inicioPausa, .fimPausa').forEach(el => el.value = hora);
+});
+
+function adicionarPausa(inicio = '', fim = '') {
+  const container = document.getElementById('pausasContainer');
+  const div = document.createElement('div');
+  div.className = 'pausa';
+  div.innerHTML = `<input type="time" class="inicioPausa" value="${inicio}"> às <input type="time" class="fimPausa" value="${fim}"><button type="button" onclick="this.parentElement.remove()">❌</button>`;
+  container.appendChild(div);
+}
+
+function limparCampos() {
+  document.getElementById('data').value = '';
+  document.getElementById('inicioJornada').value = '';
+  document.getElementById('fimJornada').value = '';
+  document.getElementById('valorHoraExtra').value = '';
+  document.getElementById('pausasContainer').innerHTML = `<div class="pausa"><input type="time" class="inicioPausa"> às <input type="time" class="fimPausa"></div>`;
+}
+
+function salvarRegistro() {
+  const dataRaw = document.getElementById('data').value;
+  if (!dataRaw) return alert("Informe a data!");
+  const [ano, mes, dia] = dataRaw.split('-');
+  const data = `${dia}/${mes}/${ano.slice(2)}`;
+  const inicioJornada = document.getElementById('inicioJornada').value;
+  const fimJornada = document.getElementById('fimJornada').value;
+  const pausas = [];
+  document.querySelectorAll('.pausa').forEach(p => {
+    const inicio = p.querySelector('.inicioPausa').value;
+    const fim = p.querySelector('.fimPausa').value;
+    if (inicio && fim) pausas.push({ inicio, fim });
+  });
+  if (!inicioJornada || !fimJornada) return alert('Preencha os horários corretamente!');
+  const registros = JSON.parse(localStorage.getItem('registros')) || [];
+  registros.push({ data, inicioJornada, fimJornada, pausas });
+  localStorage.setItem('registros', JSON.stringify(registros));
+  alert("Registro salvo com sucesso!");
+  limparCampos();
+}
+
+function calcularDuracao(inicio, fim) {
+  const [hi, mi] = inicio.split(':').map(Number);
+  const [hf, mf] = fim.split(':').map(Number);
+  return (hf * 60 + mf) - (hi * 60 + mi);
+}
+
+function formatarTempo(minutos) {
+  const h = String(Math.floor(minutos / 60)).padStart(2, '0');
+  const m = String(minutos % 60).padStart(2, '0');
+  return `${h}:${m}`;
+}
+
+function mostrarRegistros() {
+  const mesConsulta = document.getElementById('mesConsulta').value;
+  if (!mesConsulta) return alert("Selecione um mês.");
+  const [ano, mes] = mesConsulta.split('-').map(Number);
+  const dataInicio = new Date(ano, mes - 1, 16);
+  const dataFim = new Date(ano, mes, 15);
+  const registros = JSON.parse(localStorage.getItem('registros')) || [];
+  const container = document.getElementById('registros');
+  const resumo = document.getElementById('resumo');
+  container.innerHTML = '';
+  let totalMinutos = 0;
+  let totalExtrasMin = 0;
+  for (const r of registros) {
+    const [dia, mesR, anoR] = r.data.split('/').map(Number);
+    const dataRegistro = new Date(2000 + anoR, mesR, dia);
+    if (dataRegistro >= dataInicio && dataRegistro <= dataFim) {
+      const jornadaMin = calcularDuracao(r.inicioJornada, r.fimJornada);
+      let pausaMin = 0;
+      if (Array.isArray(r.pausas)) {
+        for (const p of r.pausas) pausaMin += calcularDuracao(p.inicio, p.fim);
+      }
+      const trabalhado = jornadaMin - pausaMin;
+      container.innerHTML += `<div class="registro"><strong>${r.data}</strong><br>Jornada: ${r.inicioJornada} às ${r.fimJornada}<br>Pausas:<br>${r.pausas?.map(p => `${p.inicio} às ${p.fim}`).join('<br>') || '--'}<br>Trabalhado: ${formatarTempo(trabalhado)}<br><button onclick="editarRegistro(${registros.indexOf(r)})" style="margin-top:5px; background:orange; color:white;">✏️ Editar</button><button onclick="excluirRegistro(${registros.indexOf(r)})" style="margin-top:5px; background:red; color:white;">🗑️ Excluir</button></div>`;
+      totalMinutos += trabalhado;
+    }
+  }
+  const valorExtras = parseFloat(document.getElementById('valorHoraExtra').value) || 0;
+  const diasNoPeriodo = (dataFim - dataInicio) / (1000 * 60 * 60 * 24) + 1;
+  const limiteMinutos = diasNoPeriodo >= 31 ? 194 * 60 + 51 : 189 * 60 + 34;
+  if (totalMinutos > limiteMinutos) totalExtrasMin = totalMinutos - limiteMinutos;
+  resumo.innerHTML = `Total trabalhado: ${formatarTempo(totalMinutos)}<br>Horas extras: ${formatarTempo(totalExtrasMin)}<br>Valor horas extras: R$ ${(totalExtrasMin / 60 * valorExtras).toFixed(2)}`;
+}
+
+function editarRegistro(indice) {
+  const registros = JSON.parse(localStorage.getItem('registros')) || [];
+  const r = registros[indice];
+  const [dia, mes, ano] = r.data.split('/');
+  document.getElementById('data').value = `20${ano}-${mes.padStart(2,'0')}-${dia.padStart(2,'0')}`;
+  document.getElementById('inicioJornada').value = r.inicioJornada;
+  document.getElementById('fimJornada').value = r.fimJornada;
+  document.getElementById('pausasContainer').innerHTML = '';
+  if (Array.isArray(r.pausas)) r.pausas.forEach(p => adicionarPausa(p.inicio, p.fim));
+}
+
+function excluirRegistro(indice) {
+  const registros = JSON.parse(localStorage.getItem('registros')) || [];
+  if (confirm("Deseja realmente excluir este registro?")) {
+    registros.splice(indice, 1);
+    localStorage.setItem('registros', JSON.stringify(registros));
+    mostrarRegistros();
+  }
+}
+
+function apagarTodosRegistros() {
+  if (confirm("Deseja apagar todos os registros?")) {
+    localStorage.removeItem('registros');
+    document.getElementById('registros').innerHTML = '';
+    document.getElementById('resumo').innerHTML = '';
+  }
+}
+
+async function exportarParaPDF() {
+  const mesConsulta = document.getElementById('mesConsulta').value;
+  if (!mesConsulta) return alert("Selecione um mês para exportar.");
+  const [ano, mes] = mesConsulta.split('-').map(Number);
+  const dataInicio = new Date(ano, mes - 1, 16);
+  const dataFim = new Date(ano, mes, 15);
+  const registros = JSON.parse(localStorage.getItem('registros')) || [];
+  const dadosTabela = [];
+  for (const r of registros) {
+    const [dia, mesR, anoR] = r.data.split('/').map(Number);
+    const dataRegistro = new Date(2000 + anoR, mesR - 1, dia);
+    if (dataRegistro >= dataInicio && dataRegistro <= dataFim) {
+      const jornadaMin = calcularDuracao(r.inicioJornada, r.fimJornada);
+      let pausaMin = 0;
+      if (Array.isArray(r.pausas)) {
+        for (const p of r.pausas) pausaMin += calcularDuracao(p.inicio, p.fim);
+      }
+      const trabalhado = jornadaMin - pausaMin;
+      dadosTabela.push([r.data, `${r.inicioJornada} às ${r.fimJornada}`, r.pausas?.map(p => `${p.inicio} às ${p.fim}`).join(', ') || '--', formatarTempo(trabalhado)]);
+    }
+  }
+  if (dadosTabela.length === 0) return alert("Nenhum registro encontrado para exportar.");
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFontSize(18);
+  doc.text("Relatório de Jornada", 14, 20);
+  doc.autoTable({ head: [['Data', 'Jornada', 'Pausas', 'Total Trabalhado']], body: dadosTabela, startY: 30, styles: { fontSize: 12 } });
+  doc.save("jornada.pdf");
+}
+
+function copiarChavePix() {
+  const chavePix = '49d0c7a5-d9e8-460d-b68c-bafd981bb69a';
+  navigator.clipboard.writeText(chavePix).then(() => alert('Chave PIX copiada para a área de transferência!'));
+}
+</script>
+</body>
+</html>
