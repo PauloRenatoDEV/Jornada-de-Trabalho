@@ -137,7 +137,7 @@ function mostrarRegistros() {
   const mesConsulta = document.getElementById('mesConsulta').value;
   if (!mesConsulta) return alert("Selecione um mês.");
   const [ano, mes] = mesConsulta.split('-').map(Number);
-  const dataInicio = new Date(ano, mes - 1, 16);
+  const dataInicio = new Date(ano, mes, 16);
   const dataFim = new Date(ano, mes, 15);
   const registros = JSON.parse(localStorage.getItem('registros')) || [];
   const container = document.getElementById('registros');
