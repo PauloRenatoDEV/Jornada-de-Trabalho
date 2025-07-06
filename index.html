@@ -76,6 +76,7 @@
 </footer>
 
 <script>
+  let indiceEdicao = -1;
 document.getElementById('data').addEventListener('change', () => {
   const agora = new Date();
   const hora = agora.toTimeString().slice(0, 5);
@@ -114,11 +115,31 @@ function salvarRegistro() {
     if (inicio && fim) pausas.push({ inicio, fim });
   });
   if (!inicioJornada || !fimJornada) return alert('Preencha os horários corretamente!');
+
   const registros = JSON.parse(localStorage.getItem('registros')) || [];
-  registros.push({ data, inicioJornada, fimJornada, pausas });
+
+  const novoRegistro = { data, inicioJornada, fimJornada, pausas };
+
+  if (indiceEdicao >= 0) {
+    registros[indiceEdicao] = novoRegistro; // Atualiza o registro existente
+    alert("Registro atualizado com sucesso!");
+  } else {
+    registros.push(novoRegistro); // Novo registro
+    alert("Registro salvo com sucesso!");
+  }
+
   localStorage.setItem('registros', JSON.stringify(registros));
-  alert("Registro salvo com sucesso!");
   limparCampos();
+  indiceEdicao = -1; // Resetar o modo edição
+  mostrarRegistros();
+}
+  function limparCampos() {
+  document.getElementById('data').value = '';
+  document.getElementById('inicioJornada').value = '';
+  document.getElementById('fimJornada').value = '';
+  document.getElementById('valorHoraExtra').value = '';
+  document.getElementById('pausasContainer').innerHTML = `<div class="pausa"><input type="time" class="inicioPausa"> às <input type="time" class="fimPausa"></div>`;
+  indiceEdicao = -1;
 }
 
 function calcularDuracao(inicio, fim) {
@@ -170,6 +191,7 @@ function editarRegistro(indice) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
   const registros = JSON.parse(localStorage.getItem('registros')) || [];
   const r = registros[indice];
+  indiceEdicao = indice; // Marcar que estamos editando este índice
   const [dia, mes, ano] = r.data.split('/');
   document.getElementById('data').value = `20${ano}-${mes.padStart(2,'0')}-${dia.padStart(2,'0')}`;
   document.getElementById('inicioJornada').value = r.inicioJornada;
