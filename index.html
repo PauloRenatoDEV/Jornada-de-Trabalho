@@ -167,6 +167,7 @@ function mostrarRegistros() {
 }
 
 function editarRegistro(indice) {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
   const registros = JSON.parse(localStorage.getItem('registros')) || [];
   const r = registros[indice];
   const [dia, mes, ano] = r.data.split('/');
